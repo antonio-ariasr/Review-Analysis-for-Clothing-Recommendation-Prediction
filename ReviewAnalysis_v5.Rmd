@@ -1,0 +1,479 @@
+---
+title: "ReviewAnalysis"
+output: html_document
+date: "2023-04-13"
+---
+
+```{r}
+# Load packages
+library(stringr)
+library(tidyverse)
+library(stopwords)
+```
+
+```{r}
+# Load data: Please store the dataset in your current folder
+reviewdata<-read.csv("Womens Clothing E-Commerce Reviews.csv")
+head(reviewdata)
+```
+
+## Exploratory Analysis
+# Lexical Diversity Analysis
+
+```{r}
+# Calculate review text length
+reviews<-reviewdata$Review.Text
+reviewLength = c()
+for (i in 1:length(reviews)){
+  lowercase = str_to_lower(reviews[i])
+  words = strsplit(lowercase,"\\W+") 
+  wordsV = unlist(words)
+  reviewLength[i]<-length(wordsV)
+}
+reviewdata$reviewLength = reviewLength
+
+# Calculate review title length
+title<-reviewdata$Title
+titleLength = c()
+for (i in 1:length(title)){
+  lowercase = str_to_lower(title[i])
+  words = strsplit(lowercase,"\\W+") 
+  wordsV = unlist(words)
+  titleLength[i]<-length(wordsV)
+}
+reviewdata$titleLength = titleLength
+```
+
+```{r}
+# Whether title is NA
+IsTitlePresent = c()
+for (i in 1:length(titleLength)){
+  if (titleLength[i] == "0"){
+    IsTitlePresent[i] = 0}
+    else{
+      IsTitlePresent[i] = 1
+  }
+}
+reviewdata$IsTitlePresent = IsTitlePresent
+
+# Whether review text is NA
+IsReviewPresent = c()
+for (i in 1:length(reviewLength)){
+  if (reviewLength[i] == "0"){
+    IsReviewPresent[i] = 0}
+  else{
+    IsReviewPresent[i] = 1
+  }
+}
+
+reviewdata$IsReviewPresent = IsReviewPresent
+```
+
+```{r}
+# Calculate lexical diversity for review text
+lexDivReview = c()
+for (i in 1:length(reviews)){
+  lower = str_to_lower(reviews[i])
+  words = strsplit(lower,"\\W+") 
+  wordsV = unlist(words)
+  length(wordsV)
+  freqTable <- table(wordsV)
+  types <-length(freqTable)
+  tokens <- length(wordsV)
+  lexDiv <- types/tokens
+  lexDivReview[i]=lexDiv
+}
+reviewdata$lexDivReview = lexDivReview
+
+# Calculate lexical diversity for review title
+lexDivTitle = c()
+for (i in 1:length(title)){
+  lower = str_to_lower(title[i])
+  words = strsplit(lower,"\\W+") 
+  wordsV = unlist(words)
+  length(wordsV)
+  freqTable <- table(wordsV)
+  types <-length(freqTable)
+  tokens <- length(wordsV)
+  lexDiv <- types/tokens
+  lexDivTitle[i]=lexDiv
+}
+reviewdata$lexDivTitle = lexDivTitle
+
+```
+
+
+# Plots and Descriptive Statistics for review text & title length
+
+```{r}
+summary(reviewdata$titleLength)
+summary(reviewdata$reviewLength)
+
+p1 <- ggplot(reviewdata, aes(x=titleLength)) + 
+  geom_histogram(color="darkblue", fill="lightblue") +
+  geom_vline(aes(xintercept=mean(titleLength)),
+            color="blue", linetype="dashed", size=1)+
+  xlab("Title Length")+ylab("Count")+
+  ggtitle("Distribution of Review Title Length")+
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_continuous(n.breaks = 10)+
+  theme_minimal()
+  
+  
+p2 <- ggplot(reviewdata, aes(x=reviewLength)) + 
+  geom_histogram(color="darkblue", fill="lightblue") +
+  geom_vline(aes(xintercept=mean(reviewLength)),
+            color="blue", linetype="dashed", size=1)+
+  xlab("Review Text Length")+ylab("Count")+
+  ggtitle("Distribution of Review Text Length") +
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_continuous(n.breaks = 10)+
+  theme_minimal()
+
+p1;p2
+```
+
+# Descriptive Statistics and Plots on Rating and Lexical Diversity
+
+```{r}
+summary(reviewdata$Rating)
+summary(reviewdata$lexDivReview)
+
+p4 <- ggplot(reviewdata, aes(x=Rating)) + 
+  geom_histogram(color= "black", fill="maroon") +
+  geom_vline(aes(xintercept=mean(Rating)),
+            color="black", linetype="dashed", size=1)+
+  xlab("Rating")+ylab("Count")+
+  ggtitle("Distribution of Ratings") +
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_continuous(n.breaks = 10)+
+  theme_minimal()
+
+p5 <- ggplot(reviewdata, aes(x=lexDivReview)) + 
+  geom_histogram(color="black", fill="maroon") +
+  geom_vline(aes(xintercept=mean(lexDivReview)),
+            color="black", linetype="dashed", size=1)+
+  xlab("Lexical Diversity")+ylab("Count")+
+  ggtitle("Distribution of Lexical Diversity") +
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_continuous(n.breaks = 10)+
+  theme_minimal()
+
+p4
+p5
+```
+
+# Plots and Descriptive Statistics for Age
+
+```{r}
+attach(reviewdata)
+summary(Age)
+
+p3 <- ggplot(reviewdata, aes(x=Age)) + 
+  geom_histogram(color="darkgreen", fill="lightgreen") +
+  geom_vline(aes(xintercept=mean(reviewLength)),
+             color="black", linetype="dashed", size=1)+
+  xlab("Age")+ylab("Count")+
+  ggtitle("Distribution of Age") +
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_continuous(n.breaks = 10)+
+  theme_minimal()
+p3
+
+detach(reviewdata)
+
+```
+
+# Non-text Based Regression Models 
+
+```{r}
+reviewdata1 = subset(reviewdata, IsTitlePresent=="1")
+reviewdata1 = subset(reviewdata1, IsReviewPresent=="1")
+
+attach(reviewdata1)
+
+#Creating a binary variable from the rating. If the rating is 4 or 5, it is considered high, while ratings less than 4 are considered low
+HighRating = c()
+for (i in 1:length(Rating)){
+  if (Rating[i] <4){
+    HighRating[i] = 0}
+  else{
+    HighRating[i] = 1
+  }
+}
+reviewdata1$HighRating = HighRating
+
+Eval <- function(r1){
+  fitted.results.1 <- predict(r1,reviewdata1)
+  fitted.results.binary.1 <- ifelse(fitted.results.1 > 0.5,1,0)
+  t1 <- table(HighRating,fitted.results.binary.1)
+  A.1 = ((t1[1,1]+t1[2,2])/sum(t1))
+  P.1 = (t1[1,1]/(sum(t1[1,])))
+  R.1 = (t1[1,1]/(sum(t1[,1])))
+  F.1 = 2*P.1*R.1/(P.1+R.1)
+  print(t1)
+  print(c(A.1,P.1,R.1,F.1))
+}
+
+r1 = glm(HighRating ~ Recommended.IND + reviewdata1$titleLength + reviewdata1$lexDivReview,family = binomial(link = "logit"))
+summary(r1)
+Eval(r1)
+
+r1.1 = glm(HighRating ~ reviewdata1$titleLength + reviewdata1$lexDivReview,family = binomial(link = "logit"))
+summary(r1.1)
+Eval(r1.1)
+
+r1.2 = glm(HighRating ~ Recommended.IND,family = binomial(link = "logit"))
+summary(r1.2)
+Eval(r1.2)
+
+r2 = lm(Age ~ Positive.Feedback.Count + reviewdata1$titleLength + reviewdata1$reviewLength + reviewdata1$lexDivReview)
+summary(r2)
+#all significant trends account for less than 0.3% of variance in age. 
+
+r3 = glm(Recommended.IND ~ reviewdata1$Rating + Age + Positive.Feedback.Count + reviewdata1$reviewLength + reviewdata1$lexDivReview,family = binomial(link = "logit"))
+summary(r3)
+Eval(r3)
+
+r3.1 <- glm(Recommended.IND ~ Rating, family=binomial(link = "logit"))
+summary(r3.1)
+Eval(r3.1)
+#rating has a very strong effect on whether the product was recommended
+
+r3.2 <- glm(Recommended.IND ~ Age + Positive.Feedback.Count + reviewdata1$reviewLength + reviewdata1$lexDivReview, family=binomial(link = "logit"))
+summary(r3.2)
+Eval(r3.2)
+
+table(rating=Rating,recommend=Recommended.IND)
+
+detach(reviewdata1)
+
+```
+
+
+# Word Frequency Plots 
+
+```{r}
+lower = str_to_lower(reviewdata$Review.Text)
+words = strsplit(lower, "\\W+") 
+wordsV <- unlist(words)
+wordsV = gsub('[0-9]+', '', wordsV)  # remove numbers and any punctuations
+empty <- which(wordsV == "")  #remove empty spaces
+wordsV <- wordsV[-empty]
+bool = !wordsV %in% stopwords(source = "stopwords-iso") #remove words that are in the stopwords
+content_words = wordsV[bool] 
+newFreq = table(content_words)
+sort = as.data.frame(sort(newFreq, decreasing = TRUE))
+```
+
+```{r}
+p4<-ggplot(data=sort[c(1:20),], aes(x=content_words, y=Freq)) +
+  geom_bar(stat="identity",color="darkblue", fill="lightblue")+
+  xlab("Top Content Words")+ylab("Frequency")+
+  ggtitle("Popular Word Frequency") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 60, hjust=1,size =11))+
+  geom_text(aes(label = Freq), vjust = -0.5, size = 3 )
+
+p4
+```
+
+
+
+
+
+
+
+
+
+## Model Predictions: Dictionary, Naive Bayes, Logistic Regression
+# Dictionary Approach 
+
+```{r}
+#load the positive and negative dictionaries
+### CHANGED PATHS - files in same folder as rmd
+positive <- read.table("positive-words.txt", sep="\n", stringsAsFactors = FALSE)
+negative <- read.table("negative-words.txt", sep="\n", stringsAsFactors = FALSE)
+
+#delete all rows that begin with ;
+positive <- subset(positive, substr(positive$V1,1,1) != ";" , )
+negative <- subset(negative, substr(negative$V1,1,1) != ";" , )
+
+#convert review texts to a string
+reviewdata$Review.Text <- as.character(reviewdata$Review.Text)
+
+#split the reviews into words and save the result in a new column
+reviewdata$words <- strsplit(reviewdata$Review.Text, "\\W+")
+
+#compute number of positive and negative words
+reviewdata$numPos <- sapply(1:nrow(reviewdata), function(x) length(which(reviewdata$words[[x]] %in% positive$V1)) )
+reviewdata$numNeg <-sapply(1:nrow(reviewdata), function(x) length(which(reviewdata$words[[x]] %in% negative$V1)))
+
+#classify a review as positive if reviewdata$numPos > reviewdata$numNeg, and negative otherwise
+reviewdata$Predicted <- ifelse(reviewdata$numPos > reviewdata$numNeg, 1, 0)
+
+#Compute accuracy, precision and recall for this model. 
+table(reviewdata$Recommended.IND, reviewdata$Predicted)
+
+#Compute accuracy, precision, and recall
+evaluate <- function(true, predicted){
+  
+  error <- table(true,predicted)
+  
+  tp <- error[2,2]  #true positives
+  fn <- error[1,2]  #false negative
+  tn <- error[1,1]  #true negative
+  fp <- error[2,1]  #false positives
+
+  accuracy <-(tp+tn)/(tp+fn+tn+fp)
+  precision <- tp/(tp+fp)  
+  recall <- tp/(tp+fn)
+  return(c(accuracy,precision,recall))
+}
+
+evaluate(reviewdata$Recommended.IND, reviewdata$Predicted)
+```
+
+
+
+# Naive Bayes Approach 
+
+```{r, warning = FALSE}
+install.packages("tm")
+install.packages("SnowballC")
+library(tm)
+library(SnowballC)
+install.packages("e1071")
+library(e1071)
+
+set.seed(1)
+review_corpus <- Corpus(VectorSource(reviewdata$Review.Text))
+
+cleaning.profile.tfIdf <- list(removePunctuation=T,
+                             stripWhitespace=T,
+                             removeNumbers=T,
+                             tolower=T, 
+                             stopwords=T,
+                             stemming=T,
+                             weighting=weightTfIdf )
+
+DTM <- DocumentTermMatrix(review_corpus, control = cleaning.profile.tfIdf)
+DTM2 <- removeSparseTerms(DTM, 0.9)
+DTMFinal <- as.matrix(DTM2)
+
+n <- length(review_corpus)
+training <- sample(1:n, 0.8*n)
+testing <- c(1:n)[-training]
+training.set_reviews <- DTMFinal[training,]
+training.labels_reviews <- reviewdata[training,]$Recommended.IND
+testing.set_reviews <- DTMFinal[testing,]
+testing.labels <- reviewdata[testing,]$Recommended.IND
+
+naive_bayes_training <- naiveBayes(training.set_reviews, training.labels_reviews)
+
+predictions <- predict(naive_bayes_training,
+                             testing.set_reviews, type="class")
+
+evaluate(reviewdata$Recommended.IND[testing], predictions)
+
+```
+
+
+# Logistic Regression
+
+```{r}
+set.seed(1)
+#split data into training and test
+training_data_rows <- floor(0.70 * nrow(reviewdata))          
+training_indices <- sample(c(1:nrow(reviewdata)), training_data_rows)
+training_data <- reviewdata[training_indices,] 
+test_data <- reviewdata[-training_indices,]
+
+cc = data.frame("reviewLength"= reviewdata$reviewLength, "lexDivReview"= reviewdata$lexDivReview, "numPos" = reviewdata$numPos, "numNeg" = reviewdata$numNeg, "rec" = reviewdata$Recommended.IND)
+library(bestglm)
+bestglm(cc, family=binomial)
+# finds that all variables are useful in predicting recommendation (p-val < 0.05)
+
+
+#model = glm(Recommended.IND ~ numPos + numNeg, family = binomial, data = training_data)
+# create logistic regression model using significant predictors
+model = glm(Recommended.IND ~ numPos + numNeg + reviewLength + lexDivReview, family = binomial, data = training_data)
+# test for significance using anova test, find that all variables are significant
+anova(model, test="Chisq")
+
+#d_test = data.frame("numPos" = test_data$numPos, "numNeg" = test_data$numNeg)
+# Performance test
+d_test = data.frame("numPos" = test_data$numPos, "numNeg" = test_data$numNeg, "reviewLength" = test_data$reviewLength, "lexDivReview" = test_data$lexDivReview)
+# Predict probabilities of positive recommendation
+predict_test = predict.glm(model, d_test, type="response")
+# Classify probabilities into yes/no if > 0.5
+predict_test <- ifelse(predict_test > 0.5, 1, 0)
+
+# confusion matrix
+table(test_data$Recommended.IND, predict_test)
+evaluate(test_data$Recommended.IND, predict_test)
+# Performs better than the naive prediction from counts
+# in Accuracy, significantly better in Precision and only slightly worse in Recall
+```
+
+
+
+```{r}
+#Lasso Regression
+
+library(glmnetUtils)
+library(caret)
+set.seed(1)
+
+rev_corpus <- Corpus(VectorSource(reviewdata$Review.Text))
+
+rev_corpus
+
+cleaning.profile.tfIdf <- list(removePunctuation=T,
+                               stripWhitespace=T,
+                               removeNumbers=T,
+                               tolower=T, 
+                               stopwords=T,
+                               weighting=weightTfIdf,
+                               stemDocument=T) 
+
+
+DTM.tfIdf <-DocumentTermMatrix(rev_corpus,control=cleaning.profile.tfIdf)
+
+DTM.tfIdf <- removeSparseTerms(DTM.tfIdf, 0.9)
+
+DTM.tfIdf.matrix <- as.matrix(DTM.tfIdf)
+
+n <- length(rev_corpus)
+training <- sample(1:n, (0.8*n))
+testing <- c(1:n)[-training]
+
+training.set <- DTM.tfIdf.matrix[training,]
+testing.set <- DTM.tfIdf.matrix[testing,]
+
+training.labels <- reviewdata$Recommended.IND[training]
+testing.labels <- reviewdata$Recommended.IND[testing]
+
+fit = cv.glmnet(training.set, training.labels, family = "binomial", type.measure = "class")
+
+plot(fit)
+
+fit$lambda.min
+
+coef(fit, s = "lambda.min")[1:10,]
+
+predictions <- predict(fit, newx = testing.set, s = "lambda.min", type = "response")
+
+
+pred_categories <- predict(fit, newx = testing.set, s = "lambda.min", type = "class")
+
+
+table(predictions, pred_categories)
+
+evaluate(testing.labels,pred_categories)
+
+all <- as.matrix(coef(fit, s = "lambda.min"))
+all 
+
+sort(all[,1])
+```
